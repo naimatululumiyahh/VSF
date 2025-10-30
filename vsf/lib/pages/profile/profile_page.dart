@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:vsf/pages/impressionomg/impression_page.dart';
 import '../../models/user_model.dart';
+import '../../services/session_service.dart';
 import '../auth/login_page.dart';
+import '../impressionomg/impression_page.dart';
 
 class ProfilePage extends StatelessWidget {
   final UserModel currentUser;
 
   const ProfilePage({super.key, required this.currentUser});
 
-  void _logout(BuildContext context) {
+  void _logout(BuildContext context) async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -20,12 +21,18 @@ class ProfilePage extends StatelessWidget {
             child: const Text('Batal'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginPage()),
-                (route) => false,
-              );
+            onPressed: () async {
+              // Clear session
+              await SessionService().clearSession();
+              
+              if (context.mounted) {
+                // Navigate to login and remove all routes
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                  (route) => false,
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,

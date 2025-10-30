@@ -3,6 +3,7 @@ import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'package:hive/hive.dart';
 import '../../models/user_model.dart';
+import '../../services/session_service.dart';
 import '../main_screen.dart';
 import 'register_individual_page.dart';
 import 'register_organization_page.dart';
@@ -18,6 +19,7 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _sessionService = SessionService();
   bool _obscurePassword = true;
   bool _isLoading = false;
 
@@ -64,8 +66,11 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // Login berhasil
+      // Login berhasil - SAVE SESSION
+      await _sessionService.saveSession(foundUser.id);
+
       if (mounted) {
+        // Navigate dengan replacement agar tidak bisa back ke login
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -298,6 +303,30 @@ class _LoginPageState extends State<LoginPage> {
                       Text(
                         'Organisasi:\nyayasan@cipta.org / org123',
                         style: TextStyle(fontSize: 12, color: Colors.blue[900]),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.green[50],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.green[600], size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Login sekali akan tetap login (ada session!)',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.green[900],
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),

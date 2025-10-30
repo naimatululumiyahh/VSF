@@ -3,20 +3,27 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 
+// Import models
 import 'models/user_model.dart';
 import 'models/event_model.dart';
 import 'models/event_location.dart';
 import 'models/article_model.dart';
 import 'models/volunteer_registration.dart';
 
+// Import services
+import 'services/session_service.dart';
+
+// Import pages
 import 'pages/auth/login_page.dart';
+import 'pages/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-
+  // Initialize Hive
   await Hive.initFlutter();
 
+  // Register Adapters
   Hive.registerAdapter(UserTypeAdapter());
   Hive.registerAdapter(UserModelAdapter());
   Hive.registerAdapter(EventLocationAdapter());
@@ -24,13 +31,13 @@ void main() async {
   Hive.registerAdapter(ArticleModelAdapter());
   Hive.registerAdapter(VolunteerRegistrationAdapter());
 
-
+  // Open Boxes
   await Hive.openBox<UserModel>('users');
   await Hive.openBox<EventModel>('events');
   await Hive.openBox<ArticleModel>('articles');
   await Hive.openBox<VolunteerRegistration>('registrations');
 
-
+  // Seed dummy data jika box kosong
   await seedDummyData();
 
   runApp(const MyApp());
@@ -203,6 +210,7 @@ Future<void> seedDummyData() async {
       category: 'Kesehatan',
     );
 
+    // Event 5: Bagi Takjil Ramadhan
     final event5 = EventModel(
       id: 'event_005',
       title: 'Bagi Takjil Gratis Ramadhan',
@@ -293,8 +301,94 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         fontFamily: 'Inter',
       ),
-      home: const LoginPage(),
+      home: const SplashScreen(),
     );
   }
 }
 
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  final _sessionService = SessionService();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSession();
+  }
+
+  Future<void> _checkSession() async {
+    // Delay untuk splash effect
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    // Check apakah ada session
+    final isLoggedIn = await _sessionService.isLoggedIn();
+
+    if (isLoggedIn) {
+      // Validate session dan ambil user
+      final user = await _sessionService.getCurrentUser();
+
+      if (user != null) {
+        // Session valid, langsung ke MainScreen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MainScreen(currentUser: user),
+          ),
+        );
+      } else {
+        // Session invalid, clear dan ke login
+        await _sessionService.clearSession();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+        );
+      }
+    } else {
+      // Tidak ada session, ke login
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.blue[600],
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.volunteer_activism,
+              size: 100,
+              color: Colors.white,
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Volunteer Spot Finder',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
