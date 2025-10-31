@@ -1,13 +1,11 @@
 buildscript {
-    ext.kotlin_version = '1.9.0' // Perbarui ke 1.9.0
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        // Perbarui ke versi 8.1.4 atau yang terbaru (saat ini)
-        classpath 'com.android.tools.build:gradle:8.1.4' 
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath("com.android.tools.build:gradle:8.1.3")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.20")
     }
 }
 
@@ -18,16 +16,18 @@ allprojects {
     }
 }
 
-val newBuildDir: Directory =
-    rootProject.layout.buildDirectory
-        .dir("../../build")
-        .get()
-rootProject.layout.buildDirectory.value(newBuildDir)
+// Menetapkan direktori build agar keluar dari folder 'android'
+val newBuildDir = rootProject.layout.buildDirectory
+    .dir("../../build")
+    .get()
+    .asFile
+rootProject.layout.buildDirectory.set(newBuildDir)
 
 subprojects {
-    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-    project.layout.buildDirectory.value(newSubprojectBuildDir)
+    val newSubprojectBuildDir: File = newBuildDir.resolve(project.name)
+    project.layout.buildDirectory.set(newSubprojectBuildDir)
 }
+
 subprojects {
     project.evaluationDependsOn(":app")
 }

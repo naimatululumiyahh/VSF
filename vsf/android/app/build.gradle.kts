@@ -1,36 +1,37 @@
 plugins {
-   id("com.android.application")
-   id("kotlin-android")
-   // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
-   id("dev.flutter.flutter-gradle-plugin")
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.example.vsf"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = flutter.compileSdkVersion.toInteger()
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
         applicationId = "com.example.vsf"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
+        minSdk = flutter.minSdkVersion.toInteger()
+        targetSdk = flutter.targetSdkVersion.toInteger()
+        versionCode = flutter.versionCode.toInteger()
         versionName = flutter.versionName
 
         javaCompileOptions {
             annotationProcessorOptions {
-                arguments = [AROUTER_MODULE_NAME: project.getName()]
+                // Hati-hati dengan variabel ini, ganti sesuai kebutuhan jika tidak menggunakan ARouter
+                arguments(mapOf("AROUTER_MODULE_NAME" to project.name))
             }
-            coreLibraryDesugaringEnabled true
         }
     }
 
@@ -46,5 +47,6 @@ flutter {
 }
 
 dependencies {
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'  # Gunakan versi terbaru, cek di Maven Central
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    // Tambahkan dependencies Flutter, Kotlin, atau AndroidX lainnya di sini
 }
