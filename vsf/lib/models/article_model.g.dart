@@ -2,7 +2,9 @@
 
 part of 'article_model.dart';
 
+// **************************************************************************
 // TypeAdapterGenerator
+// **************************************************************************
 
 class ArticleModelAdapter extends TypeAdapter<ArticleModel> {
   @override

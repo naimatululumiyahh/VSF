@@ -23,6 +23,13 @@ void main() async {
   // Initialize Hive
   await Hive.initFlutter();
 
+  // Delete all Hive boxes
+  try {
+    await Hive.deleteFromDisk();
+  } catch (e) {
+    print('Error deleting Hive data: $e');
+  }
+
   // Register Adapters
   Hive.registerAdapter(UserTypeAdapter());
   Hive.registerAdapter(UserModelAdapter());
@@ -31,11 +38,18 @@ void main() async {
   Hive.registerAdapter(ArticleModelAdapter());
   Hive.registerAdapter(VolunteerRegistrationAdapter());
 
-  // Open Boxes
+  // Open Boxes in correct order
   await Hive.openBox<UserModel>('users');
   await Hive.openBox<EventModel>('events');
   await Hive.openBox<ArticleModel>('articles');
-  await Hive.openBox<VolunteerRegistration>('registrations');
+  try {
+    await Hive.openBox<VolunteerRegistration>('registrations');
+  } catch (e) {
+    print('Error opening registrations box: $e');
+    // Try to delete and recreate if there's an error
+    await Hive.deleteBoxFromDisk('registrations');
+    await Hive.openBox<VolunteerRegistration>('registrations');
+  }
 
   // Seed dummy data jika box kosong
   await seedDummyData();

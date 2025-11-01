@@ -25,7 +25,7 @@ class VolunteerRegistrationAdapter extends TypeAdapter<VolunteerRegistration> {
       volunteerPhone: fields[5] as String,
       volunteerNik: fields[6] as String?,
       birthDate: fields[7] as DateTime,
-      availability: fields[8] as String,
+      agreementNonRefundable: fields[8] as bool,
       motivation: fields[9] as String,
       donationAmount: fields[10] as int,
       paymentMethod: fields[11] as String,
@@ -57,7 +57,7 @@ class VolunteerRegistrationAdapter extends TypeAdapter<VolunteerRegistration> {
       ..writeByte(7)
       ..write(obj.birthDate)
       ..writeByte(8)
-      ..write(obj.availability)
+      ..write(obj.agreementNonRefundable)
       ..writeByte(9)
       ..write(obj.motivation)
       ..writeByte(10)

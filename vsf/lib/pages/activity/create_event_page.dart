@@ -3,9 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';  
 import 'package:path_provider/path_provider.dart';
 import 'package:hive/hive.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../widgets/location_picker.dart';
+import 'package:geocoding/geocoding.dart';
 import '../../models/event_model.dart';
 import '../../models/event_location.dart';
 import '../../models/user_model.dart';
+import '../../services/location_service.dart';
 
 class CreateEventPage extends StatefulWidget {
 	final UserModel currentUser;
@@ -17,6 +21,9 @@ class CreateEventPage extends StatefulWidget {
 }
 
 class _CreateEventPageState extends State<CreateEventPage> {
+  LatLng? _selectedLocation;
+  final LocationService _locationService = LocationService();
+
 	@override
 	void initState() {
 		super.initState();
@@ -42,6 +49,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
 					_pickedImage = File(e.imageUrl!);
 				} catch (_) {}
 			}
+
+      // Set initial map location if coordinates exist
+      if (e.location.latitude != 0 && e.location.longitude != 0) {
+        _selectedLocation = LatLng(e.location.latitude, e.location.longitude);
+      }
 		}
 	}
 	final _formKey = GlobalKey<FormState>();
@@ -60,6 +72,46 @@ class _CreateEventPageState extends State<CreateEventPage> {
 	DateTime? _startDateTime;
 	DateTime? _endDateTime;
 	File? _pickedImage;
+  GoogleMapController? _mapController;
+
+  Future<void> _handleMapTap(LatLng position) async {
+    setState(() => _selectedLocation = position);
+
+    try {
+      // Get address details from coordinates
+      final placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        _districtController.text = place.subLocality ?? '';
+        _villageController.text = place.locality ?? '';
+        _rtRwController.text = '${place.street ?? ''}'.replaceAll(RegExp(r'[^0-9/]'), '');
+        
+        // Update dropdowns if values found
+        final province = place.administrativeArea;
+        if (province != null && _provinces.contains(province)) {
+          setState(() {
+            _selectedProvince = province;
+            _selectedCity = null;
+          });
+        }
+
+        final city = place.subAdministrativeArea;
+        if (city != null && (_citiesByProvince[_selectedProvince] ?? []).contains(city)) {
+          setState(() => _selectedCity = city);
+        }
+      }
+    } catch (e) {
+      print('Error getting address: $e');
+    }
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    _mapController = controller;
+  }
 
 	final List<String> _categories = [
 		'Pendidikan', 'Lingkungan', 'Kesehatan', 'Sosial', 'Anak-anak'
@@ -129,8 +181,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
 			district: _districtController.text,
 			village: _villageController.text,
 			rtRw: _rtRwController.text,
-			latitude: 0,
-			longitude: 0,
+			latitude: _selectedLocation?.latitude ?? 0,
+			longitude: _selectedLocation?.longitude ?? 0,
 		);
 		final imagePath = _pickedImage?.path ?? widget.existingEvent?.imageUrl;
 
@@ -254,18 +306,29 @@ class _CreateEventPageState extends State<CreateEventPage> {
 								validator: (v) => v == null ? 'Pilih kategori' : null,
 							),
 							const SizedBox(height: 16),
-							const Text('Lokasi'),
-							const SizedBox(height: 8),
+							const Text('Lokasi', 
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+							const SizedBox(height: 16),
 							DropdownButtonFormField<String>(
 								initialValue: _selectedCountry,
 								items: _countries
 										.map((c) => DropdownMenuItem(value: c, child: Text(c)))
 										.toList(),
 								onChanged: (v) => setState(() => _selectedCountry = v),
-								decoration: const InputDecoration(labelText: 'Pilih Negara', border: OutlineInputBorder()),
+								decoration: const InputDecoration(
+                  hintText: 'Pilih Negara',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(8)),
+                  ),
+                ),
 								validator: (v) => v == null ? 'Pilih negara' : null,
 							),
-							const SizedBox(height: 8),
+							const SizedBox(height: 12),
 							DropdownButtonFormField<String>(
 								initialValue: _selectedProvince,
 								items: _provinces
@@ -277,20 +340,57 @@ class _CreateEventPageState extends State<CreateEventPage> {
 										_selectedCity = null;
 									});
 								},
-								decoration: const InputDecoration(labelText: 'Pilih Provinsi', border: OutlineInputBorder()),
+								decoration: const InputDecoration(
+                  hintText: 'Pilih Provinsi',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(8)),
+                  ),
+                ),
 								validator: (v) => v == null ? 'Pilih provinsi' : null,
 							),
-							const SizedBox(height: 8),
+							const SizedBox(height: 12),
 							DropdownButtonFormField<String>(
 								initialValue: _selectedCity,
 								items: (_citiesByProvince[_selectedProvince] ?? [])
 										.map((c) => DropdownMenuItem(value: c, child: Text(c)))
 										.toList(),
 								onChanged: (v) => setState(() => _selectedCity = v),
-								decoration: const InputDecoration(labelText: 'Pilih Kota/Kabupaten', border: OutlineInputBorder()),
+								decoration: const InputDecoration(
+                  hintText: 'Pilih Kota/Kabupaten',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(8)),
+                  ),
+                ),
 								validator: (v) => v == null ? 'Pilih kota/kabupaten' : null,
 							),
-							const SizedBox(height: 8),
+							const SizedBox(height: 16),
+              const Text(
+                'Pilih Lokasi di Peta',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              LocationPicker(
+                initialLocation: _selectedLocation,
+                onLocationPicked: _handleMapTap,
+              ),
+              if (_selectedLocation != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Koordinat: ${_selectedLocation!.latitude.toStringAsFixed(6)}, ${_selectedLocation!.longitude.toStringAsFixed(6)}',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+							const SizedBox(height: 16),
 							TextFormField(
 								controller: _districtController,
 								decoration: const InputDecoration(hintText: 'Kecamatan', border: OutlineInputBorder()),

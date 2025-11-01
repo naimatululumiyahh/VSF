@@ -25,17 +25,7 @@ class _RegisterVolunteerPageState extends State<RegisterVolunteerPage> {
   final _phoneController = TextEditingController();
   final _motivationController = TextEditingController();
   DateTime? _selectedBirthDate;
-  String _selectedAvailability = 'Senin';
-
-  final List<String> _availabilityOptions = [
-    'Senin',
-    'Selasa',
-    'Rabu',
-    'Kamis',
-    'Jumat',
-    'Sabtu',
-    'Minggu',
-  ];
+  bool _agreementChecked = false;
 
   @override
   void initState() {
@@ -80,6 +70,16 @@ class _RegisterVolunteerPageState extends State<RegisterVolunteerPage> {
   void _proceedToPayment() {
     if (!_formKey.currentState!.validate()) return;
 
+    if (!_agreementChecked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Silakan setujui ketentuan pendaftaran terlebih dahulu'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (_selectedBirthDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -100,7 +100,7 @@ class _RegisterVolunteerPageState extends State<RegisterVolunteerPage> {
       volunteerPhone: _phoneController.text.trim(),
       volunteerNik: widget.currentUser.nik,
       birthDate: _selectedBirthDate!,
-      availability: _selectedAvailability,
+      agreementNonRefundable: _agreementChecked,
       motivation: _motivationController.text.trim(),
       donationAmount: widget.event.participationFeeIdr,
       paymentMethod: '', // Akan diisi di payment page
@@ -352,30 +352,20 @@ class _RegisterVolunteerPageState extends State<RegisterVolunteerPage> {
                 ),
               ),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedAvailability,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
-                items: _availabilityOptions.map((day) {
-                  return DropdownMenuItem(
-                    value: day,
-                    child: Text(day),
-                  );
-                }).toList(),
+              // Agreement Checkbox
+              CheckboxListTile(
+                value: _agreementChecked,
                 onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _selectedAvailability = value);
-                  }
+                  setState(() => _agreementChecked = value ?? false);
                 },
+                title: const Text(
+                  'Saya menyetujui bahwa biaya pendaftaran yang telah dibayarkan tidak dapat dikembalikan',
+                  style: TextStyle(fontSize: 14),
+                ),
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                checkColor: Colors.white,
+                activeColor: Colors.blue[600],
               ),
               const SizedBox(height: 20),
 

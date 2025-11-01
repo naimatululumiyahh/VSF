@@ -7,6 +7,7 @@ import '../../models/event_model.dart';
 import '../../models/user_model.dart';
 import '../../models/volunteer_registration.dart';
 import '../volunteer/register_volunteer_page.dart';
+import 'event_participants_page.dart';
 
 class ActivityDetailPage extends StatefulWidget {
   final EventModel event;
@@ -468,6 +469,51 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
   }
 
     Widget _buildBottomActions() {
+      // If this is the organizer's event
+      if (widget.event.organizerId == widget.currentUser.id) {
+        return Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EventParticipantsPage(
+                        event: widget.event,
+                        currentUser: widget.currentUser,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.people),
+                label: const Text('Lihat Peserta'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 140,
+              child: OutlinedButton.icon(
+                onPressed: _openGoogleMaps,
+                icon: const Icon(Icons.map),
+                label: const Text('Lihat Maps'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.blue[600],
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        );
+      }
+
       final isRegistered = widget.event.isUserRegistered(widget.currentUser.id);
 
       if (isRegistered) {
@@ -520,7 +566,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
         );
       }
 
-      // Not registered: keep original behaviour
+      // Not registered: show register button
       return SizedBox(
         width: double.infinity,
         child: ElevatedButton(

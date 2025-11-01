@@ -22,55 +22,91 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
   bool _isProcessing = false;
 
   Future<void> _processPayment() async {
-    setState(() => _isProcessing = true);
+    try {
+      setState(() => _isProcessing = true);
 
-    // Simulasi payment processing
-    await Future.delayed(const Duration(seconds: 3));
+      // Simulasi payment processing
+      await Future.delayed(const Duration(seconds: 3));
 
-    // Simulasi success rate 95%
-    final isSuccess = Random().nextDouble() > 0.05;
+      // Simulasi success rate 95%
+      final isSuccess = Random().nextDouble() > 0.05;
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (isSuccess) {
-      // Save registration to Hive
-      final registrationBox = Hive.box<VolunteerRegistration>('registrations');
-      final completedRegistration = VolunteerRegistration(
-        id: widget.registration.id,
-        eventId: widget.registration.eventId,
-        volunteerId: widget.registration.volunteerId,
-        volunteerName: widget.registration.volunteerName,
-        volunteerEmail: widget.registration.volunteerEmail,
-        volunteerPhone: widget.registration.volunteerPhone,
-        volunteerNik: widget.registration.volunteerNik,
-        birthDate: widget.registration.birthDate,
-        availability: widget.registration.availability,
-        motivation: widget.registration.motivation,
-        donationAmount: widget.registration.donationAmount,
-        paymentMethod: widget.registration.paymentMethod,
-        isPaid: true, // Mark as paid
-      );
+      if (isSuccess) {
+        // Save registration to Hive 
+        try {
+          final registrationBox = await Hive.openBox<VolunteerRegistration>('registrations');
+          final completedRegistration = VolunteerRegistration(
+            id: widget.registration.id,
+            eventId: widget.registration.eventId,
+            volunteerId: widget.registration.volunteerId,
+            volunteerName: widget.registration.volunteerName,
+            volunteerEmail: widget.registration.volunteerEmail,
+            volunteerPhone: widget.registration.volunteerPhone,
+            volunteerNik: widget.registration.volunteerNik,
+            birthDate: widget.registration.birthDate,
+            agreementNonRefundable: widget.registration.agreementNonRefundable,
+            motivation: widget.registration.motivation,
+            donationAmount: widget.registration.donationAmount,
+            paymentMethod: widget.registration.paymentMethod,
+            isPaid: true, // Mark as paid
+          );
 
-      await registrationBox.add(completedRegistration);
+          await registrationBox.add(completedRegistration);
+          
+          // Update event volunteer count
+          final eventBox = await Hive.openBox<EventModel>('events');
+          final eventList = eventBox.values.where(
+            (e) => e.id == widget.event.id,
+          ).toList();
+          
+          if (eventList.isEmpty) {
+            throw Exception('Event not found');
+          }
 
-      // Update event volunteer count
-      final eventBox = Hive.box<EventModel>('events');
-      final event = eventBox.values.firstWhere(
-        (e) => e.id == widget.event.id,
-      );
-      event.addVolunteer(widget.registration.volunteerId);
+          final event = eventList.first;
+          event.addVolunteer(widget.registration.volunteerId);
+          await eventBox.put(event.key, event);
 
-      // Show success dialog
-      _showSuccessDialog();
-    } else {
-      // Show error
-      setState(() => _isProcessing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pembayaran gagal. Silakan coba lagi.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+          // Show success dialog  
+          _showSuccessDialog();
+
+        } catch (e) {
+          // Handle database error
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Terjadi kesalahan saat menyimpan data. Silakan coba lagi.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          setState(() => _isProcessing = false);
+        }
+
+      } else {
+        // Show error
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pembayaran gagal. Silakan coba lagi.'), 
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+
+    } catch (e) {
+      // Handle any other errors
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Terjadi kesalahan. Silakan coba lagi.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -203,19 +239,27 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          widget.event.imageUrl ?? '',
+                        child: Container(
                           width: 80,
                           height: 80,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 80,
-                              height: 80,
-                              color: Colors.grey[200],
-                              child: const Icon(Icons.image, size: 32),
-                            );
-                          },
+                          color: Colors.grey[100],
+                          child: widget.event.imageUrl != null && widget.event.imageUrl!.isNotEmpty
+                              ? Image.network(
+                                  widget.event.imageUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Icon(
+                                      Icons.volunteer_activism,
+                                      color: Colors.black54,
+                                      size: 32,
+                                    );
+                                  },
+                                )
+                              : const Icon(
+                                  Icons.volunteer_activism,
+                                  color: Colors.black54,
+                                  size: 32,
+                                ),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -264,7 +308,6 @@ class _ConfirmPaymentPageState extends State<ConfirmPaymentPage> {
             _buildInfoRow('Nama', widget.registration.volunteerName),
             _buildInfoRow('Email', widget.registration.volunteerEmail),
             _buildInfoRow('Telepon', widget.registration.volunteerPhone),
-            _buildInfoRow('Ketersediaan', widget.registration.availability),
             const SizedBox(height: 24),
 
             // Payment Info

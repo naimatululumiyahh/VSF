@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'package:hive/hive.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../models/user_model.dart';
+import '../../services/serpapi_service.dart';
+import '../../config/secrets_example.dart' as secrets_example; // copy and create lib/config/secrets.dart locally and set SERPAPI_KEY
 
 class RegisterIndividualPage extends StatefulWidget {
   const RegisterIndividualPage({super.key});
@@ -18,6 +22,14 @@ class _RegisterIndividualPageState extends State<RegisterIndividualPage> {
   final _nikController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
+  // Address + SerpApi
+  final _addressController = TextEditingController();
+  List<Map<String, dynamic>> _addressSuggestions = [];
+  bool _isSearchingAddress = false;
+  Timer? _addressDebounce;
+  LatLng? _selectedLocation; // preview coordinate from suggestions
+
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
@@ -29,6 +41,8 @@ class _RegisterIndividualPageState extends State<RegisterIndividualPage> {
     _nikController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _addressController.dispose();
+    _addressDebounce?.cancel();
     super.dispose();
   }
 
@@ -36,6 +50,74 @@ class _RegisterIndividualPageState extends State<RegisterIndividualPage> {
     final bytes = utf8.encode(password);
     final hash = sha256.convert(bytes);
     return hash.toString();
+  }
+
+  // ===== SerpApi address helpers =====
+  void _onAddressChanged(String v) {
+    _addressDebounce?.cancel();
+    _addressDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (v.trim().isNotEmpty) _searchAddress(v.trim());
+    });
+  }
+
+  Future<void> _searchAddress(String query) async {
+    setState(() {
+      _isSearchingAddress = true;
+      _addressSuggestions = [];
+    });
+    try {
+      final apiKey = secrets_example.SERPAPI_KEY;
+      final results = await SerpApiService.instance.autocomplete(query, apiKey);
+      setState(() {
+        _addressSuggestions = results;
+      });
+    } catch (e) {
+      // ignore errors silently for UX; optionally show message
+      print('SerpApi error: $e');
+    } finally {
+      if (mounted) setState(() => _isSearchingAddress = false);
+    }
+  }
+
+  Future<void> _selectAddressSuggestion(Map<String, dynamic> item) async {
+    // item may contain description, lat/lng, or place_id
+    final desc = item['description'] ?? item['formatted_address'] ?? item['title'] ?? '';
+    setState(() {
+      _addressController.text = desc;
+      _addressSuggestions = [];
+    });
+
+    double? lat = item['lat'] is num ? (item['lat'] as num).toDouble() : null;
+    double? lng = item['lng'] is num ? (item['lng'] as num).toDouble() : null;
+
+    if (lat != null && lng != null) {
+      setState(() => _selectedLocation = LatLng(lat, lng));
+      return;
+    }
+
+    // fallback: if SerpApi returned a place_id, try to fetch details
+    final placeId = item['place_id'] ?? item['placeid'] ?? item['place_id_token'];
+    if (placeId != null) {
+      try {
+        final apiKey = secrets_example.SERPAPI_KEY;
+        final details = await SerpApiService.instance.placeDetails(placeId: placeId.toString(), apiKey: apiKey);
+        if (details != null) {
+          // try to extract geometry
+          Map<String, dynamic>? placeResult;
+          if (details.containsKey('place_result')) placeResult = Map<String, dynamic>.from(details['place_result']);
+          if (placeResult != null && placeResult['geometry'] != null && placeResult['geometry']['location'] != null) {
+            final loc = placeResult['geometry']['location'];
+            final dlat = loc['lat'];
+            final dlng = loc['lng'];
+            if (dlat != null && dlng != null) {
+              setState(() => _selectedLocation = LatLng((dlat as num).toDouble(), (dlng as num).toDouble()));
+            }
+          }
+        }
+      } catch (e) {
+        print('Error fetching place details: $e');
+      }
+    }
   }
 
   Future<void> _register() async {
@@ -142,6 +224,73 @@ class _RegisterIndividualPageState extends State<RegisterIndividualPage> {
                     return null;
                   },
                 ),
+                // Alamat (ketik untuk cari lokasi)
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _addressController,
+                  decoration: InputDecoration(
+                    labelText: 'Alamat (opsional)',
+                    hintText: 'Ketik alamat, pilih dari saran',
+                    prefixIcon: const Icon(Icons.place_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    suffixIcon: _isSearchingAddress ? const Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: SizedBox(width:16,height:16,child:CircularProgressIndicator(strokeWidth:2)),
+                    ) : null,
+                  ),
+                  onChanged: _onAddressChanged,
+                ),
+                if (_addressSuggestions.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6)],
+                    ),
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _addressSuggestions.length,
+                      itemBuilder: (context, i) {
+                        final item = _addressSuggestions[i];
+                        final desc = item['description'] ?? item['formatted_address'] ?? item['title'] ?? '';
+                        return ListTile(
+                          dense: true,
+                          title: Text(desc),
+                          onTap: () => _selectAddressSuggestion(item),
+                        );
+                      },
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                // Map preview (jika koordinat tersedia)
+                if (_selectedLocation != null)
+                  Container(
+                    height: 160,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: _selectedLocation ?? const LatLng(-6.200000, 106.816666),
+                          zoom: 16,
+                        ),
+                        markers: _selectedLocation != null ? {
+                          Marker(markerId: const MarkerId('sel'), position: _selectedLocation!),
+                        } : {},
+                        myLocationEnabled: false,
+                        zoomControlsEnabled: false,
+                        onMapCreated: (_) {},
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 16),
 
                 // Alamat Email

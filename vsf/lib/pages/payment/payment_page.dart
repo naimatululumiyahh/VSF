@@ -86,7 +86,7 @@ class _PaymentPageState extends State<PaymentPage> {
       volunteerPhone: widget.registration.volunteerPhone,
       volunteerNik: widget.registration.volunteerNik,
       birthDate: widget.registration.birthDate,
-      availability: widget.registration.availability,
+      agreementNonRefundable: widget.registration.agreementNonRefundable,
       motivation: widget.registration.motivation,
       donationAmount: widget.registration.donationAmount,
       paymentMethod: _getMethodName(_selectedMethod!),

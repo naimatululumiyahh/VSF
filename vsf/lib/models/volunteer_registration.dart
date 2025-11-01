@@ -29,7 +29,7 @@ class VolunteerRegistration {
   DateTime birthDate;
 
   @HiveField(8)
-  String availability; // "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"
+  bool agreementNonRefundable; // Agreement for non-refundable registration
 
   @HiveField(9)
   String motivation; // Motivasi singkat kenapa tertarik
@@ -61,7 +61,7 @@ class VolunteerRegistration {
     required this.volunteerPhone,
     this.volunteerNik,
     required this.birthDate,
-    required this.availability,
+    required this.agreementNonRefundable,
     required this.motivation,
     required this.donationAmount,
     required this.paymentMethod,
