@@ -241,7 +241,8 @@ class _HomePageState extends State<HomePage> {
 
               // Artikel List (Horizontal)
               SizedBox(
-                height: 220,
+                // increase height slightly to avoid overflow on small devices
+                height: 260,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
