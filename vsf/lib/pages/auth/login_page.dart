@@ -387,7 +387,7 @@ class _LoginPageState extends State<LoginPage> {
             ListTile(
               leading: CircleAvatar(
                 backgroundColor: Colors.green[50],
-                child: Icon(Icons.business, color: Colors.green[600]),
+                child: Icon(Icons.business, color: Colors.blue[600]),
               ),
               title: const Text(
                 'Organisasi',

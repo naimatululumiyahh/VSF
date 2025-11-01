@@ -1,13 +1,29 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import '../../models/user_model.dart';
 import '../../services/session_service.dart';
 import '../auth/login_page.dart';
 import '../impressionomg/impression_page.dart';
+import 'edit_profile_page.dart';
+import '../activity/my_activities_page.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   final UserModel currentUser;
 
   const ProfilePage({super.key, required this.currentUser});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  late UserModel currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    currentUser = widget.currentUser;
+  }
 
   void _logout(BuildContext context) async {
     showDialog(
@@ -43,6 +59,25 @@ class ProfilePage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _openEditProfile() async {
+    final result = await Navigator.push<bool?>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditProfilePage(user: currentUser),
+      ),
+    );
+
+    // If edited, refresh current user from session storage to get latest Hive data
+    if (result == true) {
+      final fresh = await SessionService().getCurrentUser();
+      if (fresh != null && mounted) {
+        setState(() {
+          currentUser = fresh;
+        });
+      }
+    }
   }
 
   @override
@@ -85,14 +120,19 @@ class ProfilePage extends StatelessWidget {
                       CircleAvatar(
                         radius: 50,
                         backgroundColor: Colors.blue[100],
-                        child: Text(
-                          currentUser.initials,
-                          style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue[800],
-                          ),
-                        ),
+                        backgroundImage: currentUser.profileImagePath != null
+                            ? FileImage(File(currentUser.profileImagePath!)) as ImageProvider
+                            : null,
+                        child: currentUser.profileImagePath == null
+                            ? Text(
+                                currentUser.initials,
+                                style: TextStyle(
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue[800],
+                                ),
+                              )
+                            : null,
                       ),
                       Positioned(
                         bottom: 0,
@@ -249,11 +289,7 @@ class ProfilePage extends StatelessWidget {
                     context,
                     icon: Icons.edit_outlined,
                     title: 'Edit Profil',
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Edit Profil - Coming Soon')),
-                      );
-                    },
+                    onTap: _openEditProfile,
                   ),
                   const Divider(height: 1),
                   _buildMenuTile(
@@ -261,8 +297,11 @@ class ProfilePage extends StatelessWidget {
                     icon: Icons.history_outlined,
                     title: 'Riwayat Partisipasi',
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Riwayat - Coming Soon')),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MyActivitiesPage(currentUser: currentUser),
+                        ),
                       );
                     },
                   ),

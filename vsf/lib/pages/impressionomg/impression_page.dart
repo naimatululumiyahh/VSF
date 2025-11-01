@@ -71,41 +71,7 @@ class _ImpressionPageState extends State<ImpressionPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Header Illustration
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.blue[400]!,
-                    Colors.blue[600]!,
-                  ],
-                ),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.feedback_outlined,
-                    size: 80,
-                    color: Colors.white.withOpacity(0.9),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Kami sangat menghargai masukkanmu untuk membuat aplikasi ini lebih baik.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
+            
             // Form
             Padding(
               padding: const EdgeInsets.all(24),

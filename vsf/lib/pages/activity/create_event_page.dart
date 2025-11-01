@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';  
+import 'package:path_provider/path_provider.dart';
 import 'package:hive/hive.dart';
 import '../../models/event_model.dart';
 import '../../models/event_location.dart';
@@ -8,13 +9,41 @@ import '../../models/user_model.dart';
 
 class CreateEventPage extends StatefulWidget {
 	final UserModel currentUser;
-	const CreateEventPage({super.key, required this.currentUser});
+	final EventModel? existingEvent;
+	const CreateEventPage({super.key, required this.currentUser, this.existingEvent});
 
 	@override
 	State<CreateEventPage> createState() => _CreateEventPageState();
 }
 
 class _CreateEventPageState extends State<CreateEventPage> {
+	@override
+	void initState() {
+		super.initState();
+		// If editing existing event, prefill fields
+		if (widget.existingEvent != null) {
+			final e = widget.existingEvent!;
+			_titleController.text = e.title;
+			_descController.text = e.description;
+			_selectedCategory = e.category;
+			_selectedCountry = e.location.country.isNotEmpty ? e.location.country : null;
+			_selectedProvince = e.location.province.isNotEmpty ? e.location.province : null;
+			_selectedCity = e.location.city.isNotEmpty ? e.location.city : null;
+			_districtController.text = e.location.district;
+			_villageController.text = e.location.village;
+			_rtRwController.text = e.location.rtRw;
+			// stored as UTC in model; convert to local for editing UI
+			_startDateTime = e.eventStartTime.toLocal();
+			_endDateTime = e.eventEndTime.toLocal();
+			_targetVolunteerController.text = e.targetVolunteerCount.toString();
+			_feeController.text = e.participationFeeIdr == 0 ? '' : e.participationFeeIdr.toString();
+			if (e.imageUrl != null && e.imageUrl!.isNotEmpty) {
+				try {
+					_pickedImage = File(e.imageUrl!);
+				} catch (_) {}
+			}
+		}
+	}
 	final _formKey = GlobalKey<FormState>();
 	final _titleController = TextEditingController();
 	final _descController = TextEditingController();
@@ -51,7 +80,17 @@ class _CreateEventPageState extends State<CreateEventPage> {
 		final picker = ImagePicker();
 		final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
 		if (picked != null) {
-			setState(() => _pickedImage = File(picked.path));
+			// Copy selected image into app documents for persistence
+			try {
+				final appDir = await getApplicationDocumentsDirectory();
+				final imagesDir = Directory('${appDir.path}/vsf_images');
+				if (!await imagesDir.exists()) await imagesDir.create(recursive: true);
+				final fileName = '${DateTime.now().millisecondsSinceEpoch}_${picked.name}';
+				final saved = await File(picked.path).copy('${imagesDir.path}/$fileName');
+				setState(() => _pickedImage = saved);
+			} catch (e) {
+				setState(() => _pickedImage = File(picked.path));
+			}
 		}
 	}
 
@@ -82,7 +121,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
 	Future<void> _submit() async {
 		if (!_formKey.currentState!.validate() || _startDateTime == null || _endDateTime == null) return;
 		final eventBox = Hive.box<EventModel>('events');
-		final id = DateTime.now().millisecondsSinceEpoch.toString();
+		final id = widget.existingEvent?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
 		final location = EventLocation(
 			country: _selectedCountry ?? '',
 			province: _selectedProvince ?? '',
@@ -93,17 +132,20 @@ class _CreateEventPageState extends State<CreateEventPage> {
 			latitude: 0,
 			longitude: 0,
 		);
+		final imagePath = _pickedImage?.path ?? widget.existingEvent?.imageUrl;
+
 		final event = EventModel(
 			id: id,
 			title: _titleController.text,
 			description: _descController.text,
-			imageUrl: _pickedImage?.path, // Save path, or upload to server if needed
+			imageUrl: imagePath, // Save path, or upload to server if needed
 			organizerId: widget.currentUser.id,
 			organizerName: widget.currentUser.fullName ?? widget.currentUser.organizationName ?? '-',
 			organizerImageUrl: widget.currentUser.profileImagePath,
 			location: location,
-			eventStartTime: _startDateTime!,
-			eventEndTime: _endDateTime!,
+			// store times in UTC for consistency across devices/timezones
+			eventStartTime: _startDateTime!.toUtc(),
+			eventEndTime: _endDateTime!.toUtc(),
 			targetVolunteerCount: int.tryParse(_targetVolunteerController.text) ?? 0,
 			currentVolunteerCount: 0,
 			participationFeeIdr: int.tryParse(_feeController.text) ?? 0,
@@ -111,7 +153,22 @@ class _CreateEventPageState extends State<CreateEventPage> {
 			isActive: true,
 			createdAt: DateTime.now(),
 		);
-		await eventBox.put(id, event);
+		if (widget.existingEvent != null) {
+			// Update existing event's fields without resetting volunteer counts
+			final existing = widget.existingEvent!;
+			existing.title = event.title;
+			existing.description = event.description;
+			existing.imageUrl = event.imageUrl;
+			existing.location = event.location;
+			existing.eventStartTime = event.eventStartTime;
+			existing.eventEndTime = event.eventEndTime;
+			existing.targetVolunteerCount = event.targetVolunteerCount;
+			existing.participationFeeIdr = event.participationFeeIdr;
+			existing.category = event.category;
+			existing.save();
+		} else {
+			await eventBox.put(id, event);
+		}
 		if (mounted) Navigator.pop(context, true);
 	}
 

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
 import 'package:intl/intl.dart';
+import 'package:hive/hive.dart';
 import '../../models/event_model.dart';
 import '../../models/user_model.dart';
+import '../../models/volunteer_registration.dart';
 import '../volunteer/register_volunteer_page.dart';
 
 class ActivityDetailPage extends StatefulWidget {
@@ -77,16 +80,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
-              background: Image.network(
-                widget.event.imageUrl ?? '',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.image, size: 80),
-                  );
-                },
-              ),
+              background: _buildHeaderImage(),
             ),
           ),
 
@@ -453,59 +447,172 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
           ),
         ],
       ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
+      
+        bottomNavigationBar: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, -5),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            child: _buildBottomActions(),
+          ),
+        ),
+    );
+  }
+
+    Widget _buildBottomActions() {
+      final isRegistered = widget.event.isUserRegistered(widget.currentUser.id);
+
+      if (isRegistered) {
+        // If event already past, only show "Lihat Maps" button
+        if (widget.event.isPast) {
+          return SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _openGoogleMaps,
+              icon: const Icon(Icons.map),
+              label: const Text('Lihat Maps'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.blue[600],
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _confirmCancelRegistration,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Batalkan Pendaftaran', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 140,
+              child: OutlinedButton.icon(
+                onPressed: _openGoogleMaps,
+                icon: const Icon(Icons.map),
+                label: const Text('Lihat Maps'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.blue[600],
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
             ),
           ],
-        ),
-        child: SafeArea(
-          child: ElevatedButton(
-            onPressed: widget.event.isFull || widget.event.isPast
-                ? null
-                : () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => RegisterVolunteerPage(
-                          event: widget.event,
-                          currentUser: widget.currentUser,
-                        ),
+        );
+      }
+
+      // Not registered: keep original behaviour
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: widget.event.isFull || widget.event.isPast
+              ? null
+              : () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RegisterVolunteerPage(
+                        event: widget.event,
+                        currentUser: widget.currentUser,
                       ),
-                    );
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[600],
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 0,
-              disabledBackgroundColor: Colors.grey[300],
+                    ),
+                  );
+                },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue[600],
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Text(
-              widget.event.isFull
-                  ? 'Kuota Penuh'
-                  : widget.event.isPast
-                      ? 'Event Sudah Selesai'
-                      : 'Daftar Volunteer',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+            elevation: 0,
+            disabledBackgroundColor: Colors.grey[300],
+          ),
+          child: Text(
+            widget.event.isFull
+                ? 'Kuota Penuh'
+                : widget.event.isPast
+                    ? 'Event Sudah Selesai'
+                    : 'Daftar Volunteer',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    }
+
+    Future<void> _confirmCancelRegistration() async {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Batalkan Pendaftaran'),
+          content: const Text('Apakah Anda yakin ingin membatalkan pendaftaran untuk kegiatan ini?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Ya, Batalkan')),
+          ],
+        ),
+      );
+
+      if (confirm == true) {
+        await _cancelRegistration();
+      }
+    }
+
+    Future<void> _cancelRegistration() async {
+      try {
+        final regBox = Hive.box<VolunteerRegistration>('registrations');
+        final eventBox = Hive.box<EventModel>('events');
+
+        final regEntry = regBox.values.firstWhere(
+          (r) => r.eventId == widget.event.id && r.volunteerId == widget.currentUser.id,
+          orElse: () => throw Exception('Registration not found'),
+        );
+
+        // Find the key and delete
+        dynamic foundKey;
+        for (final k in regBox.keys) {
+          final v = regBox.get(k);
+          if (v == regEntry) {
+            foundKey = k;
+            break;
+          }
+        }
+        if (foundKey != null) await regBox.delete(foundKey);
+
+        // Update event volunteer count
+        final event = eventBox.values.firstWhere((e) => e.id == widget.event.id, orElse: () => widget.event);
+        event.removeVolunteer(widget.currentUser.id);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pendaftaran berhasil dibatalkan')));
+          Navigator.pop(context); // go back to previous screen (list will refresh via listeners)
+        }
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal membatalkan pendaftaran')));
+      }
+    }
 
   Widget _buildTimezoneChip(String timezone) {
     final isSelected = _selectedTimezone == timezone;
@@ -531,9 +638,52 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
     );
   }
 
+  Widget _buildHeaderImage() {
+    final url = widget.event.imageUrl;
+    if (url == null || url.isEmpty) {
+      return Container(
+        color: Colors.grey[200],
+        child: const Icon(Icons.image, size: 80),
+      );
+    }
+
+    if (url.startsWith('http')) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.grey[200],
+            child: const Icon(Icons.image, size: 80),
+          );
+        },
+      );
+    }
+
+    // Assume local file path
+    try {
+      final file = File(url);
+      return Image.file(
+        file,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.grey[200],
+            child: const Icon(Icons.image, size: 80),
+          );
+        },
+      );
+    } catch (_) {
+      return Container(
+        color: Colors.grey[200],
+        child: const Icon(Icons.image, size: 80),
+      );
+    }
+  }
+
   String _getConvertedTime() {
-    final startTime = widget.event.eventStartTime;
-    final endTime = widget.event.eventEndTime;
+    // final startTime = widget.event.eventStartTime;
+    // final endTime = widget.event.eventEndTime;
 
     // Offset dari UTC
     int offsetHours = 0;
@@ -552,8 +702,11 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
         break;
     }
 
-    final convertedStart = startTime.add(Duration(hours: offsetHours));
-    final convertedEnd = endTime.add(Duration(hours: offsetHours));
+  // event times are stored in UTC; convert from UTC to selected timezone
+  final startUtc = widget.event.eventStartTime.toUtc();
+  final endUtc = widget.event.eventEndTime.toUtc();
+  final convertedStart = startUtc.add(Duration(hours: offsetHours));
+  final convertedEnd = endUtc.add(Duration(hours: offsetHours));
 
     final formatter = DateFormat('HH:mm');
     return '${formatter.format(convertedStart)} - ${formatter.format(convertedEnd)}';

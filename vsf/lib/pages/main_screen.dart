@@ -2,7 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:vsf/pages/home/home_page.dart';
 import 'package:vsf/pages/profile/profile_page.dart';
+import 'package:vsf/pages/activity/activity_list_page.dart';
+import 'package:vsf/pages/activity/my_activities_page.dart';
+import 'package:vsf/pages/activity/organizer_activities_page.dart';
 import '../models/user_model.dart';
+
 
 class MainScreen extends StatefulWidget {
   final UserModel currentUser;
@@ -22,9 +26,12 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _pages = [
-      HomePage(currentUser: widget.currentUser),
-      const Center(child: Text('Activity List Page - Coming Soon')),
-      const Center(child: Text('Notification Page - Coming Soon')),
+      const HomePage(),
+      ActivityListPage(currentUser: widget.currentUser), // Cari
+      // Aktivitas: different view for org vs individual
+      widget.currentUser.isOrganization
+          ? OrganizerActivitiesPage(currentUser: widget.currentUser)
+          : MyActivitiesPage(currentUser: widget.currentUser),
       ProfilePage(currentUser: widget.currentUser),
     ];
   }
@@ -57,9 +64,9 @@ class _MainScreenState extends State<MainScreen> {
             label: 'Cari',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_outlined),
-            activeIcon: Icon(Icons.notifications),
-            label: 'Notifikasi',
+            icon: Icon(Icons.event_outlined),
+            activeIcon: Icon(Icons.event),
+            label: 'Aktivitas',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),

@@ -90,16 +90,16 @@ class EventModel extends HiveObject {
   bool get isFull => currentVolunteerCount >= targetVolunteerCount;
 
   // Apakah event sudah lewat?
-  bool get isPast => DateTime.now().isAfter(eventEndTime);
+  bool get isPast => DateTime.now().toUtc().isAfter(eventEndTime);
 
   // Apakah event sedang berlangsung?
   bool get isOngoing {
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc();
     return now.isAfter(eventStartTime) && now.isBefore(eventEndTime);
   }
 
   // Apakah event akan datang?
-  bool get isUpcoming => DateTime.now().isBefore(eventStartTime);
+  bool get isUpcoming => DateTime.now().toUtc().isBefore(eventStartTime);
 
   // Persentase volunteer terdaftar
   double get volunteerPercentage {
@@ -146,8 +146,8 @@ class EventModel extends HiveObject {
     ];
     
     final days = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-    
-    return '${days[eventStartTime.weekday % 7]}, ${eventStartTime.day} ${months[eventStartTime.month - 1]} ${eventStartTime.year}';
+    final local = eventStartTime.toLocal();
+    return '${days[local.weekday % 7]}, ${local.day} ${months[local.month - 1]} ${local.year}';
   }
 
   // Format waktu event (jam saja)
@@ -155,7 +155,10 @@ class EventModel extends HiveObject {
     String formatTime(DateTime dt) {
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     }
-    return '${formatTime(eventStartTime)} - ${formatTime(eventEndTime)} WIB';
+    final startLocal = eventStartTime.toLocal();
+    final endLocal = eventEndTime.toLocal();
+    final tzName = startLocal.timeZoneName;
+    return '${formatTime(startLocal)} - ${formatTime(endLocal)} $tzName';
   }
 
   // ==================== METHODS ====================

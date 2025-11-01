@@ -69,9 +69,9 @@ class _RegisterOrganizationPageState extends State<RegisterOrganizationPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registrasi berhasil! Silakan login'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('Registrasi berhasil! Silakan login'),
+            backgroundColor:Colors.blue[600],
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -118,46 +118,6 @@ class _RegisterOrganizationPageState extends State<RegisterOrganizationPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Daftar sebagai toggle
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text(
-                          'Individu',
-                          style: TextStyle(color: Colors.black54),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.green[600],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text(
-                          'Organisasi',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
                 // Nama Pengguna / Organisasi
                 TextFormField(
                   controller: _organizationNameController,
@@ -307,7 +267,7 @@ class _RegisterOrganizationPageState extends State<RegisterOrganizationPage> {
                 ElevatedButton(
                   onPressed: _isLoading ? null : _register,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green[600],
+                    backgroundColor: Colors.blue[600],
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -347,7 +307,7 @@ class _RegisterOrganizationPageState extends State<RegisterOrganizationPage> {
                       child: Text(
                         'Masuk di sini',
                         style: TextStyle(
-                          color: Colors.green[600],
+                          color: Colors.blue[600],
                           fontWeight: FontWeight.bold,
                         ),
                       ),

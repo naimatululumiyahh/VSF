@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
+import 'dart:io';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../../services/session_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/user_model.dart';
 import '../../models/event_model.dart';
 import '../../models/article_model.dart';
 
 class HomePage extends StatefulWidget {
-  final UserModel currentUser;
-
-  const HomePage({super.key, required this.currentUser});
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
+  UserModel? _currentUser;
+  late final Box<UserModel> _userBox;
   int _totalParticipants = 0;
   int _totalDonations = 0;
   List<EventModel> _popularEvents = [];
@@ -24,6 +26,22 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadData();
+    _loadCurrentUser();
+    _userBox = Hive.box<UserModel>('users');
+    _userBox.listenable().addListener(() {
+      // Refresh current user when users box changes
+      _loadCurrentUser();
+      if (mounted) setState(() {});
+    });
+  }
+
+  Future<void> _loadCurrentUser() async {
+    final user = await SessionService().getCurrentUser();
+    if (mounted) {
+      setState(() {
+        _currentUser = user;
+      });
+    }
   }
 
   void _loadData() {
@@ -109,14 +127,31 @@ class _HomePageState extends State<HomePage> {
                     CircleAvatar(
                       radius: 28,
                       backgroundColor: Colors.orange[100],
-                      child: Text(
-                        widget.currentUser.initials,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange[800],
-                        ),
-                      ),
+                      child: _currentUser != null && _currentUser!.profileImagePath != null
+                          ? ClipOval(
+                              child: Image.file(
+                                File(_currentUser!.profileImagePath!),
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Text(
+                                  _currentUser!.initials,
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange[800],
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Text(
+                              _currentUser?.initials ?? '',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange[800],
+                              ),
+                            ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -131,7 +166,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                           Text(
-                            widget.currentUser.displayName,
+                            _currentUser?.displayName ?? '',
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,

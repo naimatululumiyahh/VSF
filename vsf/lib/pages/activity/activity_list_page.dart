@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:hive/hive.dart';
 import '../../models/event_model.dart';
 import '../../models/user_model.dart';
@@ -406,19 +407,7 @@ class _ActivityListPageState extends State<ActivityListPage> {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               child: Stack(
                 children: [
-                  Image.network(
-                    event.imageUrl ?? '',
-                    height: 160,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 160,
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.image, size: 64),
-                      );
-                    },
-                  ),
+                  _buildEventImage(event),
                   // Status Badge
                   Positioned(
                     top: 12,
@@ -562,5 +551,51 @@ class _ActivityListPageState extends State<ActivityListPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildEventImage(EventModel event) {
+    final url = event.imageUrl;
+    if (url == null || url.isEmpty) {
+      return Container(
+        height: 160,
+        color: Colors.grey[200],
+        child: const Icon(Icons.image, size: 64),
+      );
+    }
+
+    // If looks like remote URL, use network
+    if (url.startsWith('http') || url.startsWith('https')) {
+      return Image.network(
+        url,
+        height: 160,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          height: 160,
+          color: Colors.grey[200],
+          child: const Icon(Icons.broken_image, size: 64),
+        ),
+      );
+    }
+
+    // Treat as local file path
+    try {
+      final file = File(url);
+      if (file.existsSync()) {
+        return Image.file(file, height: 160, width: double.infinity, fit: BoxFit.cover);
+      } else {
+        return Container(
+          height: 160,
+          color: Colors.grey[200],
+          child: const Icon(Icons.image_not_supported, size: 64),
+        );
+      }
+    } catch (e) {
+      return Container(
+        height: 160,
+        color: Colors.grey[200],
+        child: const Icon(Icons.broken_image, size: 64),
+      );
+    }
   }
 }

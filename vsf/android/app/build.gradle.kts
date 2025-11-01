@@ -1,13 +1,13 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // Flutter Gradle Plugin harus diterapkan setelah Android dan Kotlin Gradle plugins
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.example.vsf"
-    compileSdk = flutter.compileSdkVersion.toInteger()
+    compileSdk = flutter.compileSdkVersion.toInt()  // ✅ pakai toInt()
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -22,14 +22,14 @@ android {
 
     defaultConfig {
         applicationId = "com.example.vsf"
-        minSdk = flutter.minSdkVersion.toInteger()
-        targetSdk = flutter.targetSdkVersion.toInteger()
-        versionCode = flutter.versionCode.toInteger()
+        minSdk = flutter.minSdkVersion.toInt()       // ✅
+        targetSdk = flutter.targetSdkVersion.toInt() // ✅
+        versionCode = flutter.versionCode.toInt()    // ✅
         versionName = flutter.versionName
 
         javaCompileOptions {
             annotationProcessorOptions {
-                // Hati-hati dengan variabel ini, ganti sesuai kebutuhan jika tidak menggunakan ARouter
+                // Ganti sesuai kebutuhan (hapus jika tidak pakai ARouter)
                 arguments(mapOf("AROUTER_MODULE_NAME" to project.name))
             }
         }

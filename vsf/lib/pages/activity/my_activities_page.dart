@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
+import 'dart:io';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../../models/event_model.dart';
 import '../../models/user_model.dart';
 import '../../models/volunteer_registration.dart';
@@ -26,6 +27,38 @@ class _MyActivitiesPageState extends State<MyActivitiesPage> with SingleTickerPr
     _loadRegisteredEvents();
   }
 
+  Widget _buildSmallEventImage(EventModel event) {
+    final url = event.imageUrl;
+    if (url == null || url.isEmpty) {
+      return Container(
+        color: Colors.grey[200],
+        child: const Icon(Icons.image, size: 32),
+      );
+    }
+
+    if (url.startsWith('http') || url.startsWith('https')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(url, width: 80, height: 80, fit: BoxFit.cover, errorBuilder: (_,__,___) => Container(color: Colors.grey[200], child: const Icon(Icons.broken_image))),
+      );
+    }
+
+    try {
+      final file = File(url);
+      if (file.existsSync()) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.file(file, width: 80, height: 80, fit: BoxFit.cover),
+        );
+      }
+    } catch (_) {}
+
+    return Container(
+      color: Colors.grey[200],
+      child: const Icon(Icons.image_not_supported, size: 32),
+    );
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -33,7 +66,7 @@ class _MyActivitiesPageState extends State<MyActivitiesPage> with SingleTickerPr
   }
 
   void _loadRegisteredEvents() {
-    final registrationBox = Hive.box<VolunteerRegistration>('volunteer_registrations');
+    final registrationBox = Hive.box<VolunteerRegistration>('registrations');
     final eventBox = Hive.box<EventModel>('events');
 
     // Get all registrations for current user
@@ -48,6 +81,16 @@ class _MyActivitiesPageState extends State<MyActivitiesPage> with SingleTickerPr
         .toList();
 
     setState(() {});
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Listen for registration or event changes and reload
+    final registrationBox = Hive.box<VolunteerRegistration>('registrations');
+    registrationBox.listenable().addListener(_loadRegisteredEvents);
+    final eventBox = Hive.box<EventModel>('events');
+    eventBox.listenable().addListener(_loadRegisteredEvents);
   }
 
   Widget _buildEventCard(EventModel event, VolunteerRegistration registration) {
@@ -92,19 +135,8 @@ class _MyActivitiesPageState extends State<MyActivitiesPage> with SingleTickerPr
                     height: 80,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      image: event.imageUrl != null
-                          ? DecorationImage(
-                              image: NetworkImage(event.imageUrl!),
-                              fit: BoxFit.cover,
-                            )
-                          : null,
                     ),
-                    child: event.imageUrl == null
-                        ? Container(
-                            color: Colors.grey[200],
-                            child: const Icon(Icons.image, size: 32),
-                          )
-                        : null,
+                    child: _buildSmallEventImage(event),
                   ),
                   const SizedBox(width: 16),
                   // Event Details
